@@ -33,6 +33,7 @@ double tOn = 0;           // temperature level to consider flame on. It will con
 bool flame = false;       // flame on (true) or off (false)
 bool away = false;        // present or away to keep track if you are near the flame or not.
 int timeAway = 0;         // count the number of loops person is away when the flame is on
+const bool silent = true; // silent mode. do not beep but flash the flame led when in alarm
 
 double tAverage(double t[]) {
   double avg = 0;
@@ -89,24 +90,35 @@ void setup() {
   while (distance < presence) {
     // blink the away led with '.-' (letter 'A' in morse code)
     digitalWrite(AWAY_PIN, HIGH);
-    delay(100);
+    delay(200);
     digitalWrite(AWAY_PIN, LOW);
-    delay(100);
+    delay(200);
     digitalWrite(AWAY_PIN, HIGH);
-    delay(300);
+    delay(600);
     digitalWrite(AWAY_PIN, LOW);
     Serial.println("Error: an object block the distance sensor. distance: " + String(distance));
     distance = hc.dist();
-    delay(200);
+    delay(400);
   }
-
-  // turn off flame led - flame MUST be off at startup
-  digitalWrite(FLAME_PIN, LOW);
   digitalWrite(AWAY_PIN, LOW);
-  // everything is setup emit a startup beep for buzzer test
+
+  // everything is setup emit an ok sound or flash '---' (letter 'O') with flame led
+  if (silent) {
+    delay(400);
+    for (int m = 0 ; m<3; m++) {
+      digitalWrite(FLAME_PIN, HIGH);
+      delay(600);
+      digitalWrite(FLAME_PIN, LOW);
+      delay(200);
+    }
+    delay(400);
+  } else {
   digitalWrite(BUZZER_PIN, HIGH);
   delay(BUZZER_TIME);
   digitalWrite(BUZZER_PIN, LOW);
+  }
+  // turn off flame led - flame MUST be off at startup
+  digitalWrite(FLAME_PIN, LOW);
 }
 
 
@@ -138,7 +150,8 @@ void loop() {
     flame = true;
   }
 
-  if (flame && checkThreshold(tempReading, BEETWEEN, avg)) {
+  // when flame temperature is close to average temperature record it as temperature of flame on (tOn)
+  if (flame && tOn == 0 && checkThreshold(tempReading, BEETWEEN, avg)) {
     tOn = avg;
   }
 
@@ -147,10 +160,18 @@ void loop() {
     if (timeAway > maxAway) {
       setAlarm = true;
       if (!checkThreshold(tempReading, BELOW, tOn)) {
-        digitalWrite(BUZZER_PIN, HIGH);
+        if (silent) {
+          digitalWrite(FLAME_PIN, LOW);
+        } else {
+          digitalWrite(BUZZER_PIN, HIGH);
+        }
       }
       delay(BUZZER_TIME);
-      digitalWrite(BUZZER_PIN, LOW);
+      if (silent) {
+        digitalWrite(FLAME_PIN, HIGH);
+      } else {
+        digitalWrite(BUZZER_PIN, LOW);
+      }
     }
   }
 
