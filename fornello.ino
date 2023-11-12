@@ -28,10 +28,9 @@ const int threshold = 5;  // percentage of temperature variation that will detec
 const int maxAway = 10;   // number of loops you can be away
 double tHist[samples];    // temperature history array
 int idx = 0;              // current history array index
-double tOff = 0;          // temperature level to consider flame off. It will contain latest know average temp when flame off is detected.
-double tOn = 0;
+double tOff = 0;          // temperature level to consider flame off. It will contain average temp when flame off is detected.
+double tOn = 100;         // temperature level to consider flame on. It will contain average temp when flame on is detected.
 bool flame = false;       // flame on (true) or off (false)
-int timeFlame = 0;        // count the number of loops elapsed since flame is turned on.
 bool away = false;        // present or away to keep track if you are near the flame or not.
 int timeAway = 0;         // count the number of loops person is away
 
@@ -139,9 +138,6 @@ void loop() {
   pushTemp(tHist, tempReading);
   //printTemp(tHist);
   double avg = tAverage(tHist);
-  if (flame) {
-    ++timeFlame;
-  }
   if (!flame && checkThreshold(tempReading, ABOVE, avg)) {
     digitalWrite(FLAME_PIN, HIGH);
     tOff = avg;
@@ -156,17 +152,16 @@ void loop() {
     flame = false;
     away = false;
     timeAway = 0;
+    tOn=100;
     for (int i = 0; i < samples; ++i) {
       tHist[i] = tOff;
     }
     idx = 0;
     avg = tAverage(tHist);
-    timeFlame = 0;
   }
   Serial.print("temp:" + String(tempReading) + ",");
   Serial.print("tOff:" + String(tOff) + ",");
   Serial.print("tOn:" + String(tOn) + ",");
-//  Serial.print("timeFlame:" + String(timeFlame) + ",");
 //  Serial.print("away:" + String(away) + ",");
 //  Serial.print("timeAway:" + String(timeAway) + ",");
 //  Serial.print("setAlarm:" + String(setAlarm) + ",");
