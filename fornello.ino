@@ -33,7 +33,7 @@ double tOn = 0;            // temperature level to consider flame on. It will co
 bool flame = false;        // flame on (true) or off (false)
 bool away = false;         // present or away to keep track if you are near the flame or not.
 int timeAway = 0;          // count the number of loops person is away when the flame is on
-const bool silent = true;  // silent mode. do not beep but flash the flame led when in alarm
+const bool silent = false;  // silent mode. do not beep but flash the flame led when in alarm
 bool warmDown = false;     // ss
 byte averageStatus = 0;
 double tAverage(double t[]) {
@@ -103,7 +103,7 @@ void setup() {
   }
   digitalWrite(AWAY_PIN, LOW);
 
-  // everything is setup emit an ok sound or flash '---' (letter 'O') with flame led
+  // setup is ok: emit an ok sound or flash '---' (letter 'O') with flame led
   if (silent) {
     delay(400);
     for (int m = 0; m < 3; m++) {
@@ -155,21 +155,23 @@ void loop() {
   }
 
   // check flame
-  if (!flame && checkThreshold(tempReading, ABOVE, avg)) {
+  if (!flame && averageStatus == ABOVE) {
     digitalWrite(FLAME_PIN, HIGH);
     tOff = avg;
     flame = true;
     warmDown = false;
   }
 
-  if (flame && !warmDown && checkThreshold(tempReading, BELOW, avg)) {
+  if (flame && !warmDown && averageStatus == BELOW) {
     warmDown = true;
+  } else if (flame && warmDown && averageStatus == ABOVE) {
+    warmDown = false;
   }
   // if (flame && warmDown && checkThreshold(tempReading*(100 - threshold) / 100, ABOVE, avg)) {
   //   warmDown = false;
   // }
   // when flame temperature is close to average temperature record it as temperature of flame on (tOn)
-  if (flame && !warmDown && checkThreshold(tempReading, BEETWEEN, avg)) {
+  if (flame && !warmDown && averageStatus == BEETWEEN) {
     tOn = avg * (100 - threshold) / 100;
   }
 
@@ -177,17 +179,13 @@ void loop() {
     ++timeAway;
     if (timeAway > maxAway) {
       setAlarm = true;
-      if (!checkThreshold(tempReading, BELOW, tOn)) {
-        if (silent) {
-          digitalWrite(FLAME_PIN, LOW);
-        } else {
+      digitalWrite(FLAME_PIN, LOW);
+      if (!checkThreshold(tempReading, BELOW, tOn) && !silent) {
           digitalWrite(BUZZER_PIN, HIGH);
-        }
       }
       delay(BUZZER_TIME);
-      if (silent) {
-        digitalWrite(FLAME_PIN, HIGH);
-      } else {
+      digitalWrite(FLAME_PIN, HIGH);
+      if (!silent) {
         digitalWrite(BUZZER_PIN, LOW);
       }
     }
