@@ -171,10 +171,6 @@ void loop() {
   } else if (flame && warmDown && averageStatus == ABOVE) {
     warmDown = false;
   }
-  // if (flame && warmDown && checkThreshold(tempReading*(100 - threshold) / 100, ABOVE, avg)) {
-  //   warmDown = false;
-  // }
-  // when flame temperature is close to average temperature record it as temperature of flame on (tOn)
   if (flame && !warmDown && averageStatus == BEETWEEN) {
     tOn = avg * (100 - threshold) / 100;
   }
