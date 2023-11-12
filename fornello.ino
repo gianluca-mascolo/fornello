@@ -29,6 +29,7 @@ const int maxAway = 10;   // number of loops you can be away
 double tHist[samples];    // temperature history array
 int idx = 0;              // current history array index
 double tOff = 0;          // temperature level to consider flame off. It will contain latest know average temp when flame off is detected.
+double tOn = 0;
 bool flame = false;       // flame on (true) or off (false)
 int timeFlame = 0;        // count the number of loops elapsed since flame is turned on.
 bool away = false;        // present or away to keep track if you are near the flame or not.
@@ -115,19 +116,18 @@ void loop() {
   double tempReading = mlx.readObjectTempC();
   double distance = hc.dist();
   bool setAlarm = false;
-  if (!flame || (away && distance < presence)) {
+  if (distance < presence) {
     away = false;
     timeAway = 0;
+    digitalWrite(AWAY_PIN, HIGH);  // led turn on when you are near
   }
-  if (!away && flame && distance >= presence) {
+  if (distance >= presence) {
     away = true;
+    digitalWrite(AWAY_PIN, LOW);
   }
 
-  if (away) {
+  if (away && flame) {
     ++timeAway;
-    digitalWrite(AWAY_PIN, HIGH);
-  } else {
-    digitalWrite(AWAY_PIN, LOW);
   }
   if (flame && away && timeAway > maxAway) {
     setAlarm = true;
@@ -147,9 +147,15 @@ void loop() {
     tOff = avg;
     flame = true;
   }
+
+  if (flame && checkThreshold(tempReading, BEETWEEN, avg)) {
+    tOn = avg;
+  }
   if (flame && checkThreshold(tempReading, BEETWEEN, tOff)) {
     digitalWrite(FLAME_PIN, LOW);
     flame = false;
+    away = false;
+    timeAway = 0;
     for (int i = 0; i < samples; ++i) {
       tHist[i] = tOff;
     }
@@ -159,12 +165,12 @@ void loop() {
   }
   Serial.print("temp:" + String(tempReading) + ",");
   Serial.print("tOff:" + String(tOff) + ",");
-  Serial.print("timeFlame:" + String(timeFlame) + ",");
-  //Serial.print("distance:" + String(distance) + ",");
-  Serial.print("away:" + String(away) + ",");
-  Serial.print("timeAway:" + String(timeAway) + ",");
-  Serial.print("setAlarm:" + String(setAlarm) + ",");
-  Serial.print("distance:" + String(distance) + ",");
+  Serial.print("tOn:" + String(tOn) + ",");
+//  Serial.print("timeFlame:" + String(timeFlame) + ",");
+//  Serial.print("away:" + String(away) + ",");
+//  Serial.print("timeAway:" + String(timeAway) + ",");
+//  Serial.print("setAlarm:" + String(setAlarm) + ",");
+//  Serial.print("distance:" + String(distance) + ",");
   Serial.println("avg:" + String(avg));
   if (setAlarm) {
     delay(LOOP_DELAY - BUZZER_TIME);
