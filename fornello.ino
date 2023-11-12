@@ -23,13 +23,13 @@ Adafruit_MLX90614 mlx = Adafruit_MLX90614();
 HCSR04 hc(TRIG_PIN, ECHO_PIN);  //initialisation class HCSR04 (trig pin , echo pin)
 
 const int samples = 20;   // number of samples to keep in temperature history
-const int presence = 10;  // maximum distance in cm to consider the person present near flame.
+const int presence = 20;  // maximum distance in cm to consider the person present near flame.
 const int threshold = 5;  // percentage of temperature variation that will detect a flame is on.
-const int maxAway = 10;   // number of loops you can be away
+const int maxAway = 60;   // number of loops you can be away
 double tHist[samples];    // temperature history array
 int idx = 0;              // current history array index
 double tOff = 0;          // temperature level to consider flame off. It will contain average temp when flame off is detected.
-double tOn = 100;         // temperature level to consider flame on. It will contain average temp when flame on is detected.
+double tOn = 0;           // temperature level to consider flame on. It will contain average temp when flame on is detected.
 bool flame = false;       // flame on (true) or off (false)
 bool away = false;        // present or away to keep track if you are near the flame or not.
 int timeAway = 0;         // count the number of loops person is away when the flame is on
@@ -138,25 +138,28 @@ void loop() {
     flame = true;
   }
 
-  if (away && flame) {
-    ++timeAway;
-  }
-  if (flame && away && timeAway > maxAway) {
-    setAlarm = true;
-    digitalWrite(BUZZER_PIN, HIGH);
-    delay(BUZZER_TIME);
-    digitalWrite(BUZZER_PIN, LOW);
-  }
-
   if (flame && checkThreshold(tempReading, BEETWEEN, avg)) {
     tOn = avg;
   }
+
+  if (away && flame) {
+    ++timeAway;
+    if (timeAway > maxAway) {
+      setAlarm = true;
+      if (!checkThreshold(tempReading, BELOW, tOn)) {
+        digitalWrite(BUZZER_PIN, HIGH);
+      }
+      delay(BUZZER_TIME);
+      digitalWrite(BUZZER_PIN, LOW);
+    }
+  }
+
   if (flame && checkThreshold(tempReading, BEETWEEN, tOff)) {
     digitalWrite(FLAME_PIN, LOW);
     flame = false;
     away = false;
     timeAway = 0;
-    tOn = 100;
+    tOn = 0;
     for (int i = 0; i < samples; ++i) {
       tHist[i] = tOff;
     }
