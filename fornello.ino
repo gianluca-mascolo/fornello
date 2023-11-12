@@ -13,7 +13,7 @@
 #define AWAY_PIN 10      // pin for the away led
 #define TRIG_PIN 12      // pins for HCSR04 sensor
 #define ECHO_PIN 11      // pins for HCSR04 sensor
-#define BUZZER_PIN 8         // pin for active buzzer
+#define BUZZER_PIN 8     // pin for active buzzer
 #define BUZZER_TIME 100  // milliseconds for buzzer sound
 #define ABOVE 0          // internal use by function
 #define BELOW 1          // internal use by function
@@ -22,7 +22,7 @@
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
 HCSR04 hc(TRIG_PIN, ECHO_PIN);  //initialisation class HCSR04 (trig pin , echo pin)
 
-const int samples = 20;  // number of samples to keep in temperature history
+const int samples = 20;   // number of samples to keep in temperature history
 const int presence = 10;  // maximum distance in cm to consider the person present near flame.
 const int threshold = 5;  // percentage of temperature variation that will detect a flame is on.
 const int maxAway = 10;   // number of loops you can be away
@@ -118,7 +118,7 @@ void loop() {
   // read distance
   double distance = hc.dist();
 
-  bool setAlarm = false; // alarm will be decided at end of loop
+  bool setAlarm = false;  // alarm will be decided at end of loop
 
   // check presence
   if (distance < presence) {
@@ -156,7 +156,7 @@ void loop() {
     flame = false;
     away = false;
     timeAway = 0;
-    tOn=100;
+    tOn = 100;
     for (int i = 0; i < samples; ++i) {
       tHist[i] = tOff;
     }
