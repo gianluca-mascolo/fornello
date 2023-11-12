@@ -32,7 +32,7 @@ double tOff = 0;          // temperature level to consider flame off. It will co
 double tOn = 100;         // temperature level to consider flame on. It will contain average temp when flame on is detected.
 bool flame = false;       // flame on (true) or off (false)
 bool away = false;        // present or away to keep track if you are near the flame or not.
-int timeAway = 0;         // count the number of loops person is away
+int timeAway = 0;         // count the number of loops person is away when the flame is on
 
 double tAverage(double t[]) {
   double avg = 0;
@@ -87,7 +87,7 @@ void setup() {
   // check that no object are placed in front of the distance sensor at startup
   double distance = hc.dist();
   while (distance < presence) {
-    // .- .-- AW in morse code
+    // blink the away led with '.-' (letter 'A' in morse code)
     digitalWrite(AWAY_PIN, HIGH);
     delay(100);
     digitalWrite(AWAY_PIN, LOW);
@@ -111,10 +111,16 @@ void setup() {
 
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  // read and save temperature history
   double tempReading = mlx.readObjectTempC();
+  pushTemp(tHist, tempReading);
+  double avg = tAverage(tHist);
+  // read distance
   double distance = hc.dist();
-  bool setAlarm = false;
+
+  bool setAlarm = false; // alarm will be decided at end of loop
+
+  // check presence
   if (distance < presence) {
     away = false;
     timeAway = 0;
@@ -125,6 +131,13 @@ void loop() {
     digitalWrite(AWAY_PIN, LOW);
   }
 
+  // check flame
+  if (!flame && checkThreshold(tempReading, ABOVE, avg)) {
+    digitalWrite(FLAME_PIN, HIGH);
+    tOff = avg;
+    flame = true;
+  }
+
   if (away && flame) {
     ++timeAway;
   }
@@ -133,15 +146,6 @@ void loop() {
     digitalWrite(BUZZER_PIN, HIGH);
     delay(BUZZER_TIME);
     digitalWrite(BUZZER_PIN, LOW);
-  }
-
-  pushTemp(tHist, tempReading);
-  //printTemp(tHist);
-  double avg = tAverage(tHist);
-  if (!flame && checkThreshold(tempReading, ABOVE, avg)) {
-    digitalWrite(FLAME_PIN, HIGH);
-    tOff = avg;
-    flame = true;
   }
 
   if (flame && checkThreshold(tempReading, BEETWEEN, avg)) {
@@ -162,10 +166,10 @@ void loop() {
   Serial.print("temp:" + String(tempReading) + ",");
   Serial.print("tOff:" + String(tOff) + ",");
   Serial.print("tOn:" + String(tOn) + ",");
-//  Serial.print("away:" + String(away) + ",");
-//  Serial.print("timeAway:" + String(timeAway) + ",");
-//  Serial.print("setAlarm:" + String(setAlarm) + ",");
-//  Serial.print("distance:" + String(distance) + ",");
+  Serial.print("away:" + String(away) + ",");
+  Serial.print("timeAway:" + String(timeAway) + ",");
+  Serial.print("setAlarm:" + String(setAlarm) + ",");
+  Serial.print("distance:" + String(distance) + ",");
   Serial.println("avg:" + String(avg));
   if (setAlarm) {
     delay(LOOP_DELAY - BUZZER_TIME);
