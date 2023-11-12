@@ -15,15 +15,15 @@
 #define ECHO_PIN 11      // pins for HCSR04 sensor
 #define BUZZER_PIN 8     // pin for active buzzer
 #define BUZZER_TIME 100  // milliseconds for buzzer sound
-#define ABOVE 0          // internal use by function
-#define BELOW 1          // internal use by function
-#define BEETWEEN 2       // internal use by function
+#define BELOW 0          // internal use by function
+#define BEETWEEN 1       // internal use by function
+#define ABOVE 2          // internal use by function
 
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
 HCSR04 hc(TRIG_PIN, ECHO_PIN);  //initialisation class HCSR04 (trig pin , echo pin)
 
 const int samples = 20;    // number of samples to keep in temperature history
-const int presence = 5;    // maximum distance in cm to consider the person present near flame.
+const int presence = 10;    // maximum distance in cm to consider the person present near flame.
 const int threshold = 5;   // percentage of temperature variation that will detect a flame is on.
 const int maxAway = 60;    // number of loops you can be away
 double tHist[samples];     // temperature history array
@@ -35,6 +35,7 @@ bool away = false;         // present or away to keep track if you are near the 
 int timeAway = 0;          // count the number of loops person is away when the flame is on
 const bool silent = true;  // silent mode. do not beep but flash the flame led when in alarm
 bool warmDown = false;     // ss
+byte averageStatus = 0;
 double tAverage(double t[]) {
   double avg = 0;
   for (int i = 0; i < samples; i++) {
@@ -143,6 +144,16 @@ void loop() {
     digitalWrite(AWAY_PIN, LOW);
   }
 
+  if (checkThreshold(tempReading, BELOW, avg)) {
+    averageStatus = BELOW;
+  }
+  if (checkThreshold(tempReading, BEETWEEN, avg)) {
+    averageStatus = BEETWEEN;
+  }
+  if (checkThreshold(tempReading, ABOVE, avg)) {
+    averageStatus = ABOVE;
+  }
+
   // check flame
   if (!flame && checkThreshold(tempReading, ABOVE, avg)) {
     digitalWrite(FLAME_PIN, HIGH);
@@ -151,16 +162,15 @@ void loop() {
     warmDown = false;
   }
 
+  if (flame && !warmDown && checkThreshold(tempReading, BELOW, avg)) {
+    warmDown = true;
+  }
+  // if (flame && warmDown && checkThreshold(tempReading*(100 - threshold) / 100, ABOVE, avg)) {
+  //   warmDown = false;
+  // }
   // when flame temperature is close to average temperature record it as temperature of flame on (tOn)
   if (flame && !warmDown && checkThreshold(tempReading, BEETWEEN, avg)) {
     tOn = avg * (100 - threshold) / 100;
-  }
-
-  if (flame && checkThreshold(tempReading, BELOW, avg)) {
-    warmDown = true;
-  }
-  if (flame && checkThreshold(tempReading, ABOVE, avg)) {
-    warmDown = false;
   }
 
   if (away && flame) {
@@ -199,9 +209,11 @@ void loop() {
   Serial.print("temp:" + String(tempReading) + ",");
   Serial.print("tOff:" + String(tOff) + ",");
   Serial.print("tOn:" + String(tOn) + ",");
-  //Serial.print("away:" + String(away) + ",");
+  Serial.print("warmDown:"+String(20+warmDown*10)+",");
+  Serial.print("flame:"+String(20+flame*10)+",");
+  Serial.print("avgStat:"+String(20+averageStatus*5)+",");
+
   //Serial.print("timeAway:" + String(timeAway) + ",");
-  //Serial.print("setAlarm:" + String(setAlarm) + ",");
   //Serial.print("distance:" + String(distance) + ",");
   Serial.println("avg:" + String(avg));
   if (setAlarm) {
