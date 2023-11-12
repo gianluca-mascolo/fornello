@@ -157,8 +157,12 @@ void loop() {
   // check flame
   if (!flame && averageStatus == ABOVE) {
     digitalWrite(FLAME_PIN, HIGH);
-    tOff = avg;
-    flame = true;
+    if (checkThreshold(tempReading, BEETWEEN, tOff)) {
+      tOff = avg;
+    }
+    if (checkThreshold(tempReading, ABOVE, tOff)) {
+      flame = true;
+    }
     warmDown = false;
   }
 
