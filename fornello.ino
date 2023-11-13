@@ -33,9 +33,10 @@ double tOn = 0;            // temperature level to consider flame on. It will co
 bool flame = false;        // flame on (true) or off (false)
 bool away = false;         // present or away to keep track if you are near the flame or not.
 int timeAway = 0;          // count the number of loops person is away when the flame is on
-const bool silent = false;  // silent mode. do not beep but flash the flame led when in alarm
+const bool silent = true;  // silent mode. do not beep but flash the flame led when in alarm
 bool warmDown = false;     // ss
 byte averageStatus = 0;
+unsigned long loop_num = 0;
 double tAverage(double t[]) {
   double avg = 0;
   for (int i = 0; i < samples; i++) {
@@ -204,19 +205,22 @@ void loop() {
     idx = 0;
     avg = tAverage(tHist);
   }
-  Serial.print("temp:" + String(tempReading) + ",");
-  Serial.print("tOff:" + String(tOff) + ",");
-  Serial.print("tOn:" + String(tOn) + ",");
-  Serial.print("warmDown:"+String(20+warmDown*10)+",");
-  Serial.print("flame:"+String(20+flame*10)+",");
-  Serial.print("avgStat:"+String(20+averageStatus*5)+",");
+  Serial.print(String(loop_num) + ",");
+  Serial.print(String(tempReading) + ",");
+  Serial.println(String(distance));
+  //Serial.print("tOff:" + String(tOff) + ",");
+  //Serial.print("tOn:" + String(tOn) + ",");
+  //Serial.print("warmDown:"+String(20+warmDown*10)+",");
+  //Serial.print("flame:"+String(20+flame*10)+",");
+  //Serial.print("avgStat:"+String(20+averageStatus*5)+",");
 
   //Serial.print("timeAway:" + String(timeAway) + ",");
   //Serial.print("distance:" + String(distance) + ",");
-  Serial.println("avg:" + String(avg));
+  //Serial.println("avg:" + String(avg));
   if (setAlarm) {
     delay(LOOP_DELAY - BUZZER_TIME);
   } else {
     delay(LOOP_DELAY);
   }
+  loop_num++;
 }
