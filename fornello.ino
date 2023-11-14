@@ -27,6 +27,7 @@ const int presence = 10;    // maximum distance in cm to consider the person pre
 const int threshold = 5;   // percentage of temperature variation that will detect a flame is on.
 const int maxAway = 60;    // number of loops you can be away
 double tHist[samples];     // temperature history array
+short trend[samples];      // qq
 int idx = 0;               // current history array index
 double tOff = 0;           // temperature level to consider flame off. It will contain average temp when flame off is detected.
 double tOn = 0;            // temperature level to consider flame on. It will contain average temp when flame on is detected.
@@ -46,10 +47,17 @@ double tAverage(double t[]) {
   return avg;
 }
 
-void pushTemp(double t[], double val) {
+short pushTemp(double t[], double val) {
+  short dt=0;
   t[idx] = val;
-  idx++;
-  idx %= samples;
+  dt=(t[idx]-t[(idx+samples/2)%samples])*100/t[(idx+samples/2)%samples];
+    if (dt>threshold) {
+        return 1
+    } else if (dt<-1*threshold) {
+        return -1
+    } else {
+        return 0
+    }
 }
 
 bool checkThreshold(double t, int comparison, double val) {
@@ -127,11 +135,19 @@ void setup() {
 void loop() {
   // read and save temperature history
   double tempReading = mlx.readObjectTempC();
-  pushTemp(tHist, tempReading);
+  trend[idx]=pushTemp(tHist, tempReading);
   double avg = tAverage(tHist);
   // read distance
   double distance = hc.dist();
-
+  double score = 0;
+  for (int k = 0; k < samples; k++) {
+    score+=trend[k];
+  }
+  // label="___"
+  // if score>5:
+  //     label="ACCENDI"
+  // elif score<-5:
+  //     label="SPEGNI"
   bool setAlarm = false;  // alarm will be decided at end of loop
 
   // check presence
@@ -222,5 +238,7 @@ void loop() {
   } else {
     delay(LOOP_DELAY);
   }
+  idx++;
+  idx%=samples;
   loop_num++;
 }
