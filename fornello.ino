@@ -28,7 +28,7 @@ const int threshold = 5;   // percentage of temperature variation that will dete
 const int maxAway = 60;    // number of loops you can be away
 double tHist[samples];     // temperature history array
 short trend[samples];      // qq
-int idx = 0;               // current history array index
+unsigned short idx = 0;    // current history array index
 double tOff = 0;           // temperature level to consider flame off. It will contain average temp when flame off is detected.
 double tOn = 0;            // temperature level to consider flame on. It will contain average temp when flame on is detected.
 bool flame = false;        // flame on (true) or off (false)
@@ -38,6 +38,7 @@ const bool silent = true;  // silent mode. do not beep but flash the flame led w
 bool warmDown = false;     // ss
 byte averageStatus = 0;
 unsigned long loop_num = 0;
+
 double tAverage(double t[]) {
   double avg = 0;
   for (int i = 0; i < samples; i++) {
@@ -47,16 +48,16 @@ double tAverage(double t[]) {
   return avg;
 }
 
-short pushTemp(double t[], double val) {
+short pushTemp(double t[], unsigned short pos, double val) {
   short dt=0;
-  t[idx] = val;
-  dt=(t[idx]-t[(idx+samples/2)%samples])*100/t[(idx+samples/2)%samples];
+  t[pos] = val;
+  dt=(t[pos]-t[(pos+samples/2)%samples])*100/t[(pos+samples/2)%samples];
     if (dt>threshold) {
-        return 1
+        return 1;
     } else if (dt<-1*threshold) {
-        return -1
+        return -1;
     } else {
-        return 0
+        return 0;
     }
 }
 
@@ -92,6 +93,9 @@ void setup() {
     tHist[i] = mlx.readObjectTempC();
     digitalWrite(FLAME_PIN, LOW);
     delay(100);
+  }
+  for (int i = 0; i < samples; ++i) {
+    trend[i] = 0;
   }
   tOff = tAverage(tHist);
 
@@ -135,7 +139,7 @@ void setup() {
 void loop() {
   // read and save temperature history
   double tempReading = mlx.readObjectTempC();
-  trend[idx]=pushTemp(tHist, tempReading);
+  trend[idx]=pushTemp(tHist, idx, tempReading);
   double avg = tAverage(tHist);
   // read distance
   double distance = hc.dist();
@@ -143,11 +147,14 @@ void loop() {
   for (int k = 0; k < samples; k++) {
     score+=trend[k];
   }
-  // label="___"
-  // if score>5:
-  //     label="ACCENDI"
-  // elif score<-5:
-  //     label="SPEGNI"
+  if (score>5) {
+    flame = true;
+    digitalWrite(FLAME_PIN, HIGH);
+  } else if (score<-5) {
+    flame = false;
+    digitalWrite(FLAME_PIN, LOW);
+  }
+
   bool setAlarm = false;  // alarm will be decided at end of loop
 
   // check presence
@@ -161,43 +168,12 @@ void loop() {
     digitalWrite(AWAY_PIN, LOW);
   }
 
-  if (checkThreshold(tempReading, BELOW, avg)) {
-    averageStatus = BELOW;
-  }
-  if (checkThreshold(tempReading, BEETWEEN, avg)) {
-    averageStatus = BEETWEEN;
-  }
-  if (checkThreshold(tempReading, ABOVE, avg)) {
-    averageStatus = ABOVE;
-  }
-
-  // check flame
-  if (!flame && averageStatus == ABOVE) {
-    digitalWrite(FLAME_PIN, HIGH);
-    if (checkThreshold(tempReading, BEETWEEN, tOff)) {
-      tOff = avg;
-    }
-    if (checkThreshold(tempReading, ABOVE, tOff)) {
-      flame = true;
-    }
-    warmDown = false;
-  }
-
-  if (flame && !warmDown && averageStatus == BELOW) {
-    warmDown = true;
-  } else if (flame && warmDown && averageStatus == ABOVE) {
-    warmDown = false;
-  }
-  if (flame && !warmDown && averageStatus == BEETWEEN) {
-    tOn = avg * (100 - threshold) / 100;
-  }
-
   if (away && flame) {
     ++timeAway;
     if (timeAway > maxAway) {
       setAlarm = true;
       digitalWrite(FLAME_PIN, LOW);
-      if (!checkThreshold(tempReading, BELOW, tOn) && !silent) {
+      if (!silent) {
           digitalWrite(BUZZER_PIN, HIGH);
       }
       delay(BUZZER_TIME);
@@ -208,17 +184,13 @@ void loop() {
     }
   }
 
-  if (flame && checkThreshold(tempReading, BEETWEEN, tOff)) {
+  if (!flame) {
     digitalWrite(FLAME_PIN, LOW);
     flame = false;
     away = false;
     warmDown = false;
     timeAway = 0;
     tOn = 0;
-    for (int i = 0; i < samples; ++i) {
-      tHist[i] = tOff;
-    }
-    idx = 0;
     avg = tAverage(tHist);
   }
   Serial.print(String(loop_num) + ",");
