@@ -116,8 +116,10 @@ void loop() {
   static double linest;
   static short score;
   static bool flame = false;           // flame on (true) or off (false)
-  static bool away = false;            // present or away to keep track if you are near the flame or not.
+  static bool away = false;            // present or away to keep track if you are near the flame or not
   static unsigned short timeAway = 0;  // count the number of loops person is away since the flame is on
+  static double tOff = tAvg;           // environment temperature to consider the flame off
+
   char msg[16] = "NONE";
   if (millis() - nextTime >= interval) {
     nextTime += interval;
@@ -143,15 +145,25 @@ void loop() {
     correl = covar / (sqrt(xvar) * sqrt(yvar));
 
     // emit a verdict on flame on/off
-    if (score > 2 || (correl > 0.7 && linest >= 0.05)) {
-      flame = true;
-      strcpy(msg, "FLAME_ON");
-      digitalWrite(FLAME_PIN, HIGH);
-    } else if (score < -2 || (correl < -0.7 && linest <= -0.05)) {
+    if ((abs((tempReading-tOff)*100/tOff)<threshold)) {
       flame = false;
       strcpy(msg, "FLAME_OFF");
       digitalWrite(FLAME_PIN, LOW);
+      if (score == 0 && abs(linest)< 0.05) {
+        tOff = tAvg;
+      }
+    } else {
+        if (score < -2 || (correl < -0.7 && linest <= -0.05)) {
+        flame = false;
+        strcpy(msg, "FLAME_OFF");
+        digitalWrite(FLAME_PIN, LOW);
+        } else if (score > 2 || (correl > 0.7 && linest >= 0.05)) {
+          flame = true;
+          strcpy(msg, "FLAME_ON");
+          digitalWrite(FLAME_PIN, HIGH);
+        }
     }
+
 
     // emit a verdict on away true/false
     if (distance < presence) {
@@ -183,6 +195,7 @@ void loop() {
     Serial.print("trend:" + String(trend[idx]) + ",");
     Serial.print("score:" + String(score) + ",");
     Serial.print("tAvg:" + String(tAvg) + ",");
+    Serial.print("tOff:" + String(tOff) + ",");
     Serial.print("xavg:" + String(xavg) + ",");
     Serial.print("xvar:" + String(xvar) + ",");
     Serial.print("yvar:" + String(yvar) + ",");
