@@ -9,7 +9,6 @@
 #include <HCSR04.h>
 #include <math.h>
 
-//#define LOOP_DELAY 1000   // milliseconds between loops
 #define FLAME_PIN 13     // pin for the flame led
 #define AWAY_PIN 10      // pin for the away led
 #define TRIG_PIN 12      // pins for HCSR04 sensor
@@ -20,7 +19,7 @@
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
 HCSR04 hc(TRIG_PIN, ECHO_PIN);  //initialisation class HCSR04 (trig pin , echo pin)
 
-const int samples = 30;    // number of samples to keep in temperature history
+const byte samples = 30;    // number of samples to keep in temperature history
 uint32_t interval = 1000;  // milliseconds between loops
 const int presence = 10;    // maximum distance in cm to consider the person present near flame.
 const int threshold = 5;   // percentage of temperature variation that will detect a flame is on.
@@ -31,7 +30,7 @@ unsigned short idx = 0;    // current history array index
 bool flame = false;        // flame on (true) or off (false)
 bool away = false;         // present or away to keep track if you are near the flame or not.
 int timeAway = 0;          // count the number of loops person is away when the flame is on
-const bool silent = false;  // silent mode. do not beep but flash the flame led when in alarm
+const bool silent = true;  // silent mode. do not beep but flash the flame led when in alarm
 unsigned long loop_num = 0;
 double tAvg = 0;
 const double xavg = (samples-1.0)/2;
@@ -189,12 +188,6 @@ void loop() {
       }
     }
 
-    if (!flame) {
-      digitalWrite(FLAME_PIN, LOW);
-      flame = false;
-      away = false;
-      timeAway = 0;
-    }
     Serial.print("temp:"+String(tHist[idx]) + ",");
     Serial.print("trend:"+String(trend[idx])+",");
     Serial.print("score:"+String(score)+",");
