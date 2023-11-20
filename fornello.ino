@@ -144,28 +144,15 @@ void loop() {
     yvar = (yvar/samples)-tAvg*tAvg;
     correl = covar / (sqrt(xvar)*sqrt(yvar));
 
-    if (score>2) {
+    if (score>2 || (correl>0.7 && linest >=0.05)) {
       flame = true;
+      strcpy(msg,"FLAME_ON");
       digitalWrite(FLAME_PIN, HIGH);
-      strcpy(msg,"SCORE_HIGH");
-    } else if (score<-2) {
+    } else if (score<-2 || (correl<-0.7 && linest <= -0.05)) {
       flame = false;
-      strcpy(msg,"SCORE_LOW");
+      strcpy(msg,"FLAME_OFF");
       digitalWrite(FLAME_PIN, LOW);
     }
-
-    if (abs(correl)>0.7) {
-      if (linest >= 0.05) {
-        flame = true;
-        digitalWrite(FLAME_PIN, HIGH);
-        strcpy(msg,"SLOPE_HIGH");
-      } else if (linest <= -0.05) {
-        flame = false;
-        digitalWrite(FLAME_PIN, LOW);
-        strcpy(msg,"SLOPE_LOW");
-      }
-    }
-    bool setAlarm = false;  // alarm will be decided at end of loop
 
     // check presence
     if (distance < presence) {
@@ -181,7 +168,6 @@ void loop() {
     if (away && flame) {
       ++timeAway;
       if (timeAway > maxAway) {
-        setAlarm = true;
         digitalWrite(FLAME_PIN, LOW);
         if (!silent) {
             digitalWrite(BUZZER_PIN, HIGH);
@@ -205,11 +191,6 @@ void loop() {
     Serial.print("correl:"+String(correl)+",");
     Serial.print("msg:"+String(msg)+",");
     Serial.println("");
-    // if (setAlarm) {
-    //   delay(LOOP_DELAY - BUZZER_TIME);
-    // } else {
-    //   delay(LOOP_DELAY);
-    // }
     idx++;
     idx%=samples;
     loop_num++;
