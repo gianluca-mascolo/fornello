@@ -112,28 +112,34 @@ void setup() {
 
 void loop() {
   static uint32_t nextTime = millis();
+  static double covar;
+  static double yvar;
+  static double correl;
+  static double distance;
+  static double tempReading;
+
   char msg[16] = "NONE";
   if (millis() - nextTime >= interval) {
     nextTime += interval;
     // read and save temperature history
-    double tempReading = mlx.readObjectTempC();
+    tempReading = mlx.readObjectTempC();
     tAvg=(tAvg*samples-tHist[idx]+tempReading)/samples;
     trend[idx]=pushTemp(tHist, tempReading);
-    double covar = 0;
+    // read distance
+    distance = hc.dist();
+    covar = 0;
     for (int i = 1; i <= samples; i++) {
       covar+=(i-1)*tHist[(idx+i)%samples];
     }
     covar=covar/samples-xavg*tAvg;
     double linest = covar/xvar;
-    double yvar = 0;
+    yvar = 0;
     for (int i = 0; i< samples; i++) {
       yvar+=tHist[i]*tHist[i];
     }
     yvar = (yvar/samples)-tAvg*tAvg;
 
     double correl = covar / (sqrt(xvar)*sqrt(yvar));
-    // read distance
-    double distance = hc.dist();
     double score = 0;
     for (int k = 0; k < samples; k++) {
       score+=trend[k];
