@@ -26,7 +26,7 @@ const uint32_t interval = 1000;  // milliseconds between loops
 const int presence = 10;         // maximum distance in cm to consider the person present near flame.
 const int threshold = 5;         // percentage of temperature variation that will detect a flame is on.
 const int maxAway = 60;          // number of loops you can be away
-const bool silent = true;        // silent mode. do not beep but flash the flame led when in alarm
+const bool silent = false;        // silent mode. do not beep but flash the flame led when in alarm
 
 // Global variables and constants
 double tHist[samples];   // temperature history array
@@ -55,6 +55,7 @@ void setup() {
   pinMode(BUZZER_PIN, OUTPUT);
   Serial.begin(9600);
   while (!Serial);
+  Serial.println("BEGIN SETUP");
   if (!mlx.begin()) {
     Serial.println("Error connecting to MLX sensor. Check wiring.");
     while (1);
@@ -103,11 +104,14 @@ void setup() {
   }
   // turn off flame led - flame MUST be off at startup
   digitalWrite(FLAME_PIN, LOW);
+  Serial.println("END SETUP");
+  Serial.println("READY");
 }
 
 
 void loop() {
   static uint32_t nextTime = millis();
+  static uint32_t envTime = millis();
   static double covar;
   static double yvar;
   static double correl;
@@ -147,17 +151,16 @@ void loop() {
     // emit a verdict on flame on/off
     if ((abs((tempReading-tEnv)*100/tEnv)<threshold)) {
       flame = false;
+      timeAway = 0;
       strcpy(msg, "FLAME_OFF");
       digitalWrite(FLAME_PIN, LOW);
-      if (score == 0 && abs(linest)< 0.05) {
-        tEnv = tAvg;
-      }
     } else {
-        if (score < -2 || (correl < -0.7 && linest <= -0.05)) {
+        if (score < -2 || (correl < -0.7 && linest <= -0.03)) {
         flame = false;
+        timeAway = 0;
         strcpy(msg, "FLAME_OFF");
         digitalWrite(FLAME_PIN, LOW);
-        } else if (score > 2 || (correl > 0.7 && linest >= 0.05)) {
+        } else if (score > 2 || (correl > 0.7 && linest >= 0.03)) {
           flame = true;
           strcpy(msg, "FLAME_ON");
           digitalWrite(FLAME_PIN, HIGH);
@@ -192,18 +195,26 @@ void loop() {
     }
 
     Serial.print("temp:" + String(tHist[idx]) + ",");
-    Serial.print("trend:" + String(trend[idx]) + ",");
-    Serial.print("score:" + String(score) + ",");
+    //Serial.print("trend:" + String(trend[idx]) + ",");
+    //Serial.print("score:" + String(score) + ",");
     Serial.print("tAvg:" + String(tAvg) + ",");
     Serial.print("tEnv:" + String(tEnv) + ",");
-    Serial.print("xavg:" + String(xavg) + ",");
-    Serial.print("xvar:" + String(xvar) + ",");
-    Serial.print("yvar:" + String(yvar) + ",");
-    Serial.print("linest:" + String(linest) + ",");
-    Serial.print("correl:" + String(correl) + ",");
-    Serial.print("msg:" + String(msg) + ",");
+    //Serial.print("xavg:" + String(xavg) + ",");
+    //Serial.print("xvar:" + String(xvar) + ",");
+    //Serial.print("yvar:" + String(yvar) + ",");
+    //Serial.print("linest:" + String(linest) + ",");
+    //Serial.print("correl:" + String(correl) + ",");
+    //Serial.print("msg:" + String(msg) + ",");
     Serial.println("");
     idx++;
     idx %= samples;
+  }
+  if (millis() - envTime >= interval*maxAway) {
+    envTime += interval*maxAway;
+    if ((abs((tAvg-tEnv)*100/tEnv)<threshold)) {
+      if (score == 0 && abs(linest)< 0.05) {
+        tEnv = tAvg;
+      }
+    }
   }
 }
