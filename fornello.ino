@@ -9,6 +9,7 @@
 #include <HCSR04.h>
 #include <math.h>
 
+// Hardware configuration parameters
 #define FLAME_PIN 13     // pin for the flame led
 #define AWAY_PIN 10      // pin for the away led
 #define TRIG_PIN 12      // pins for HCSR04 sensor
@@ -19,33 +20,33 @@
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
 HCSR04 hc(TRIG_PIN, ECHO_PIN);  //initialisation class HCSR04 (trig pin , echo pin)
 
-const byte samples = 30;    // number of samples to keep in temperature history
-uint32_t interval = 1000;  // milliseconds between loops
-const int presence = 10;    // maximum distance in cm to consider the person present near flame.
-const int threshold = 5;   // percentage of temperature variation that will detect a flame is on.
-const int maxAway = 60;    // number of loops you can be away
-double tHist[samples];     // temperature history array
-short trend[samples];      // qq
-unsigned short idx = 0;    // current history array index
-bool flame = false;        // flame on (true) or off (false)
-bool away = false;         // present or away to keep track if you are near the flame or not.
-int timeAway = 0;          // count the number of loops person is away when the flame is on
-const bool silent = true;  // silent mode. do not beep but flash the flame led when in alarm
-unsigned long loop_num = 0;
+// Software configuration parameters
+const byte samples = 30;         // number of samples to keep in temperature history
+const uint32_t interval = 1000;  // milliseconds between loops
+const int presence = 10;         // maximum distance in cm to consider the person present near flame.
+const int threshold = 5;         // percentage of temperature variation that will detect a flame is on.
+const int maxAway = 60;          // number of loops you can be away
+const bool silent = true;        // silent mode. do not beep but flash the flame led when in alarm
+
+// Global variables and constants
+double tHist[samples];   // temperature history array
+short trend[samples];    // qq
+unsigned short idx = 0;  // current history array index
 double tAvg = 0;
-const double xavg = (samples-1.0)/2;
-const double xvar = (samples-1.0)*(2*(samples-1.0)+1.0)/6-(xavg*xavg);
+const double xavg = (samples - 1.0) / 2;
+const double xvar = (samples - 1.0) * (2 * (samples - 1.0) + 1.0) / 6 - (xavg * xavg);
+
 short pushTemp(double t[], double val) {
-  short dt=0;
+  short dt = 0;
   t[idx] = val;
-  dt=(t[idx]-t[(idx+samples/2)%samples])*100/t[(idx+samples/2)%samples];
-    if (dt>threshold) {
-        return 1;
-    } else if (dt<-1*threshold) {
-        return -1;
-    } else {
-        return 0;
-    }
+  dt = (t[idx] - t[(idx + samples / 2) % samples]) * 100 / t[(idx + samples / 2) % samples];
+  if (dt > threshold) {
+    return 1;
+  } else if (dt < -1 * threshold) {
+    return -1;
+  } else {
+    return 0;
+  }
 }
 
 void setup() {
@@ -53,15 +54,12 @@ void setup() {
   pinMode(AWAY_PIN, OUTPUT);
   pinMode(BUZZER_PIN, OUTPUT);
   Serial.begin(9600);
-  while (!Serial)
-    ;
+  while (!Serial);
   if (!mlx.begin()) {
     Serial.println("Error connecting to MLX sensor. Check wiring.");
-    while (1)
-      ;
+    while (1);
   };
-
-  // init temperature history
+  // load initial temperature history
   for (int i = 0; i < samples; ++i) {
     digitalWrite(FLAME_PIN, HIGH);
     delay(100);
@@ -71,11 +69,10 @@ void setup() {
     digitalWrite(FLAME_PIN, LOW);
     delay(100);
   }
-  tAvg/=samples;
+  tAvg /= samples;
 
   // check that no object are placed in front of the distance sensor at startup
-  double distance = hc.dist();
-  while (distance < presence) {
+  while (hc.dist() < presence) {
     // blink the away led with '.-' (letter 'A' in morse code)
     digitalWrite(AWAY_PIN, HIGH);
     delay(200);
@@ -84,8 +81,7 @@ void setup() {
     digitalWrite(AWAY_PIN, HIGH);
     delay(600);
     digitalWrite(AWAY_PIN, LOW);
-    Serial.println("Error: an object block the distance sensor. distance: " + String(distance));
-    distance = hc.dist();
+    Serial.println("Error: an object block the distance sensor.");
     delay(400);
   }
   digitalWrite(AWAY_PIN, LOW);
@@ -119,14 +115,16 @@ void loop() {
   static double tempReading;
   static double linest;
   static short score;
-
+  static bool flame = false;           // flame on (true) or off (false)
+  static bool away = false;            // present or away to keep track if you are near the flame or not.
+  static unsigned short timeAway = 0;  // count the number of loops person is away since the flame is on
   char msg[16] = "NONE";
   if (millis() - nextTime >= interval) {
     nextTime += interval;
     // read and save temperature history
     tempReading = mlx.readObjectTempC();
-    tAvg=(tAvg*samples-tHist[idx]+tempReading)/samples;
-    trend[idx]=pushTemp(tHist, tempReading);
+    tAvg = (tAvg * samples - tHist[idx] + tempReading) / samples;
+    trend[idx] = pushTemp(tHist, tempReading);
     // read distance
     distance = hc.dist();
 
@@ -135,26 +133,27 @@ void loop() {
     yvar = 0;
     score = 0;
     for (int i = 0; i < samples; i++) {
-      covar+=i*tHist[(idx+i+1)%samples];
-      yvar+=tHist[i]*tHist[i];
-      score+=trend[i];
+      covar += i * tHist[(idx + i + 1) % samples];
+      yvar += tHist[i] * tHist[i];
+      score += trend[i];
     }
-    covar=covar/samples-xavg*tAvg;
-    linest = covar/xvar;
-    yvar = (yvar/samples)-tAvg*tAvg;
-    correl = covar / (sqrt(xvar)*sqrt(yvar));
+    covar = covar / samples - xavg * tAvg;
+    linest = covar / xvar;
+    yvar = (yvar / samples) - tAvg * tAvg;
+    correl = covar / (sqrt(xvar) * sqrt(yvar));
 
-    if (score>2 || (correl>0.7 && linest >=0.05)) {
+    // emit a verdict on flame on/off
+    if (score > 2 || (correl > 0.7 && linest >= 0.05)) {
       flame = true;
-      strcpy(msg,"FLAME_ON");
+      strcpy(msg, "FLAME_ON");
       digitalWrite(FLAME_PIN, HIGH);
-    } else if (score<-2 || (correl<-0.7 && linest <= -0.05)) {
+    } else if (score < -2 || (correl < -0.7 && linest <= -0.05)) {
       flame = false;
-      strcpy(msg,"FLAME_OFF");
+      strcpy(msg, "FLAME_OFF");
       digitalWrite(FLAME_PIN, LOW);
     }
 
-    // check presence
+    // emit a verdict on away true/false
     if (distance < presence) {
       away = false;
       timeAway = 0;
@@ -170,7 +169,7 @@ void loop() {
       if (timeAway > maxAway) {
         digitalWrite(FLAME_PIN, LOW);
         if (!silent) {
-            digitalWrite(BUZZER_PIN, HIGH);
+          digitalWrite(BUZZER_PIN, HIGH);
         }
         delay(BUZZER_TIME);
         digitalWrite(FLAME_PIN, HIGH);
@@ -180,19 +179,18 @@ void loop() {
       }
     }
 
-    Serial.print("temp:"+String(tHist[idx]) + ",");
-    Serial.print("trend:"+String(trend[idx])+",");
-    Serial.print("score:"+String(score)+",");
-    Serial.print("tAvg:"+String(tAvg)+",");
-    Serial.print("xavg:"+String(xavg)+",");
-    Serial.print("xvar:"+String(xvar)+",");
-    Serial.print("yvar:"+String(yvar)+",");
-    Serial.print("linest:"+String(linest)+",");
-    Serial.print("correl:"+String(correl)+",");
-    Serial.print("msg:"+String(msg)+",");
+    Serial.print("temp:" + String(tHist[idx]) + ",");
+    Serial.print("trend:" + String(trend[idx]) + ",");
+    Serial.print("score:" + String(score) + ",");
+    Serial.print("tAvg:" + String(tAvg) + ",");
+    Serial.print("xavg:" + String(xavg) + ",");
+    Serial.print("xvar:" + String(xvar) + ",");
+    Serial.print("yvar:" + String(yvar) + ",");
+    Serial.print("linest:" + String(linest) + ",");
+    Serial.print("correl:" + String(correl) + ",");
+    Serial.print("msg:" + String(msg) + ",");
     Serial.println("");
     idx++;
-    idx%=samples;
-    loop_num++;
+    idx %= samples;
   }
 }
