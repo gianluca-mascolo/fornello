@@ -118,7 +118,7 @@ void loop() {
   static bool flame = false;           // flame on (true) or off (false)
   static bool away = false;            // present or away to keep track if you are near the flame or not
   static unsigned short timeAway = 0;  // count the number of loops person is away since the flame is on
-  static double tOff = tAvg;           // environment temperature to consider the flame off
+  static double tEnv = tAvg;           // environment temperature to consider the flame off
 
   char msg[16] = "NONE";
   if (millis() - nextTime >= interval) {
@@ -145,12 +145,12 @@ void loop() {
     correl = covar / (sqrt(xvar) * sqrt(yvar));
 
     // emit a verdict on flame on/off
-    if ((abs((tempReading-tOff)*100/tOff)<threshold)) {
+    if ((abs((tempReading-tEnv)*100/tEnv)<threshold)) {
       flame = false;
       strcpy(msg, "FLAME_OFF");
       digitalWrite(FLAME_PIN, LOW);
       if (score == 0 && abs(linest)< 0.05) {
-        tOff = tAvg;
+        tEnv = tAvg;
       }
     } else {
         if (score < -2 || (correl < -0.7 && linest <= -0.05)) {
@@ -195,7 +195,7 @@ void loop() {
     Serial.print("trend:" + String(trend[idx]) + ",");
     Serial.print("score:" + String(score) + ",");
     Serial.print("tAvg:" + String(tAvg) + ",");
-    Serial.print("tOff:" + String(tOff) + ",");
+    Serial.print("tEnv:" + String(tEnv) + ",");
     Serial.print("xavg:" + String(xavg) + ",");
     Serial.print("xvar:" + String(xvar) + ",");
     Serial.print("yvar:" + String(yvar) + ",");
