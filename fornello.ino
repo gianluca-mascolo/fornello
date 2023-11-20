@@ -117,6 +117,8 @@ void loop() {
   static double correl;
   static double distance;
   static double tempReading;
+  static double linest;
+  static short score;
 
   char msg[16] = "NONE";
   if (millis() - nextTime >= interval) {
@@ -127,23 +129,21 @@ void loop() {
     trend[idx]=pushTemp(tHist, tempReading);
     // read distance
     distance = hc.dist();
+
+    // calculate scoring, linear regression estimation and correlation for current temperature history
     covar = 0;
-    for (int i = 1; i <= samples; i++) {
-      covar+=(i-1)*tHist[(idx+i)%samples];
+    yvar = 0;
+    score = 0;
+    for (int i = 0; i < samples; i++) {
+      covar+=i*tHist[(idx+i+1)%samples];
+      yvar+=tHist[i]*tHist[i];
+      score+=trend[i];
     }
     covar=covar/samples-xavg*tAvg;
-    double linest = covar/xvar;
-    yvar = 0;
-    for (int i = 0; i< samples; i++) {
-      yvar+=tHist[i]*tHist[i];
-    }
+    linest = covar/xvar;
     yvar = (yvar/samples)-tAvg*tAvg;
+    correl = covar / (sqrt(xvar)*sqrt(yvar));
 
-    double correl = covar / (sqrt(xvar)*sqrt(yvar));
-    double score = 0;
-    for (int k = 0; k < samples; k++) {
-      score+=trend[k];
-    }
     if (score>2) {
       flame = true;
       digitalWrite(FLAME_PIN, HIGH);
