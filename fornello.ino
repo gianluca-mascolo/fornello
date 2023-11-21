@@ -194,6 +194,10 @@ void loop() {
         if (!silent) {
           digitalWrite(BUZZER_PIN, LOW);
         }
+      } else {
+          digitalWrite(AWAY_PIN, HIGH);
+          delay(BUZZER_TIME);
+          digitalWrite(AWAY_PIN, LOW);
       }
     }
 
