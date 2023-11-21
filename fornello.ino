@@ -23,10 +23,13 @@ HCSR04 hc(TRIG_PIN, ECHO_PIN);  //initialisation class HCSR04 (trig pin , echo p
 // Software configuration parameters
 const byte samples = 30;         // number of samples to keep in temperature history
 const uint32_t interval = 1000;  // milliseconds between loops
-const int presence = 10;         // maximum distance in cm to consider the person present near flame.
-const int threshold = 5;         // percentage of temperature variation that will detect a flame is on.
-const int maxAway = 60;          // number of loops you can be away
-const bool silent = false;        // silent mode. do not beep but flash the flame led when in alarm
+const byte presence = 10;        // maximum distance in cm to consider the person present near flame.
+const byte threshold = 5;        // percentage of temperature variation to detect flame on/off status change
+const byte approval = 3;         // number of samples out of percentange range to confirm a flame status change
+const double slope = 0.03;       // linear regression slope in °C/s to detect flame on/off status change
+const double alignment = 0.7;    // linear regression correlation to consider the samples aligned
+const short maxAway = 60;        // number of loops you can be away when the flame is off
+const bool silent = true;       // silent mode. do not beep but flash the flame led when in alarm
 
 // Global variables and constants
 double tHist[samples];   // temperature history array
@@ -155,12 +158,12 @@ void loop() {
       strcpy(msg, "FLAME_OFF");
       digitalWrite(FLAME_PIN, LOW);
     } else {
-        if (score < -2 || (correl < -0.7 && linest <= -0.03)) {
+        if (score <= -1* approval || (correl < -1*alignment && linest <= -1*slope)) {
         flame = false;
         timeAway = 0;
         strcpy(msg, "FLAME_OFF");
         digitalWrite(FLAME_PIN, LOW);
-        } else if (score > 2 || (correl > 0.7 && linest >= 0.03)) {
+        } else if (score >= approval || (correl > alignment && linest >= slope)) {
           flame = true;
           strcpy(msg, "FLAME_ON");
           digitalWrite(FLAME_PIN, HIGH);
@@ -195,6 +198,8 @@ void loop() {
     }
 
     Serial.print("temp:" + String(tHist[idx]) + ",");
+    Serial.print("flame:" + String(int(flame)) + ",");
+    Serial.print("away:" + String(int(away)) + ",");
     //Serial.print("trend:" + String(trend[idx]) + ",");
     //Serial.print("score:" + String(score) + ",");
     Serial.print("tAvg:" + String(tAvg) + ",");
@@ -211,10 +216,8 @@ void loop() {
   }
   if (millis() - envTime >= interval*maxAway) {
     envTime += interval*maxAway;
-    if ((abs((tAvg-tEnv)*100/tEnv)<threshold)) {
-      if (score == 0 && abs(linest)< 0.05) {
+    if ( abs((tAvg-tEnv)*100/tEnv)<threshold && score == 0 && abs(linest)< slope) {
         tEnv = tAvg;
-      }
     }
   }
 }
