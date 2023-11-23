@@ -1,0 +1,32 @@
+apiVersion: 1
+
+datasources:
+  - name: Graphite
+    type: graphite
+    access: proxy
+    url: http://graphite/
+    basicAuth: false
+    user:
+    database:
+    id: 1
+    isDefault: true
+    jsonData:
+      graphiteVersion: '1.1'
+    orgId: 1
+    readOnly: false
+    typeLogoUrl: /public/app/plugins/datasource/graphite/img/graphite_logo.png
+    typeName: Graphite
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100/
+    basicAuth: false
+    user:
+    database:
+    id: 2
+    isDefault: false
+    jsonData: {}
+    orgId: 1
+    readOnly: false
+    typeLogoUrl: /public/app/plugins/datasource/loki/img/loki_icon.svg
+    typeName: Loki

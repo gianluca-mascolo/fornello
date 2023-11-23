@@ -1,0 +1,51 @@
+---
+services:
+  grafana:
+    hostname: grafana
+    container_name: grafana
+    depends_on:
+      - graphite
+      - loki
+    image: grafana/grafana-oss:10.2.2
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=arduino
+      - GF_SECURITY_ADMIN_PASSWORD=arduino
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_DASHBOARDS_MIN_REFRESH_INTERVAL=1s
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/etc/dashboards/arduino/fornello.json
+    volumes:
+      - type: bind
+        source: $PWD/provisioning
+        target: /etc/grafana/provisioning
+        read_only: true
+      - type: bind
+        source: $PWD/dashboards
+        target: /etc/dashboards
+        read_only: true
+  graphite:
+    hostname: graphite
+    container_name: graphite
+    image: graphiteapp/graphite-statsd:1.1.10-5
+    ports:
+      - "8080:80"
+      - "2003:2003"
+      - "2004:2004"
+      - "2023:2023"
+      - "2024:2024"
+      - "8125:8125/udp"
+      - "8126:8126"
+  loki:
+    hostname: loki
+    container_name: loki
+    image: grafana/loki:2.9.0
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - type: bind
+        source: $PWD/loki-local-config.yaml
+        target: /etc/loki/local-config.yaml
+        read_only: true
