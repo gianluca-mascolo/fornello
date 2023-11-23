@@ -1,2 +1,4 @@
 *.ods
 *.~lock*
+.venv
+__pycache__
