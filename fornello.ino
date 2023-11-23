@@ -33,7 +33,7 @@ const bool silent = false;       // silent mode. do not beep but flash the flame
 
 // Global variables and constants
 double tHist[samples];   // temperature history array
-short trend[samples];    // qq
+short trend[samples];    // temperature trends array
 unsigned short idx = 0;  // current history array index
 double tAvg = 0;
 const double xavg = (samples - 1.0) / 2;
