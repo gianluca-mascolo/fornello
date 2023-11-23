@@ -29,7 +29,7 @@ const byte approval = 3;         // number of samples out of percentange range t
 const double slope = 0.03;       // linear regression slope in °C/s to detect flame on/off status change
 const double alignment = 0.7;    // linear regression correlation to consider the samples aligned
 const short maxAway = 60;        // number of loops you can be away when the flame is off
-const bool silent = true;       // silent mode. do not beep but flash the flame led when in alarm
+const bool silent = false;       // silent mode. do not beep but flash the flame led when in alarm
 
 // Global variables and constants
 double tHist[samples];   // temperature history array
