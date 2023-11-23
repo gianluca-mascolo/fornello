@@ -115,6 +115,7 @@ void setup() {
 void loop() {
   static uint32_t nextTime = millis();
   static uint32_t envTime = millis();
+  static uint32_t timestamp;
   static double covar;
   static double yvar;
   static double correl;
@@ -128,7 +129,8 @@ void loop() {
   static double tEnv = tAvg;           // environment temperature to consider the flame off
 
   char msg[16] = "NONE";
-  if (millis() - nextTime >= interval) {
+  timestamp = millis();
+  if (timestamp - nextTime >= interval) {
     nextTime += interval;
     // read and save temperature history
     tempReading = mlx.readObjectTempC();
@@ -200,7 +202,7 @@ void loop() {
           digitalWrite(AWAY_PIN, LOW);
       }
     }
-
+    Serial.print("time:"+String(timestamp)+",");
     Serial.print("temp:" + String(tHist[idx]) + ",");
     Serial.print("flame:" + String(int(flame)) + ",");
     Serial.print("away:" + String(int(away)) + ",");
@@ -218,7 +220,7 @@ void loop() {
     idx++;
     idx %= samples;
   }
-  if (millis() - envTime >= interval*maxAway) {
+  if (timestamp - envTime >= interval*maxAway) {
     envTime += interval*maxAway;
     if ( abs((tAvg-tEnv)*100/tEnv)<threshold && score == 0 && abs(linest)< slope) {
         tEnv = tAvg;
