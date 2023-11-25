@@ -7,7 +7,7 @@ import struct
 import sys
 import time
 
-import requests
+from requests import post
 from serial import Serial, SerialException
 
 LOKI_URL = "http://localhost:3100/loki/api/v1/push"
@@ -84,7 +84,7 @@ def send_logs(msg: str, src: str, url: str) -> bool:
     headers = {"Content-type": "application/json"}
     payload = {"streams": [{"stream": {"source": src}, "values": [[str(time.time_ns()), msg]]}]}
     try:
-        r = requests.post(url, data=json.dumps(payload), headers=headers)
+        r = post(url, data=json.dumps(payload), headers=headers)
     except Exception:
         return False
     if r.status_code >= 200 or r.status_code <= 299:
