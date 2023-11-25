@@ -99,7 +99,7 @@ def main():
     if not message.setup(ser=ser,retry=10):
         print("Error: Arduino setup failed")
         sys.exit(1)
-    while ser.is_open:
+    while ser.is_open and not terminate.received:
         serial_line = message.readline(ser)
         print(f"{message.sample} {serial_line} {message.arduinostamp}")
         metrics = {}
@@ -120,8 +120,6 @@ def main():
         except:
             pass
         sendlog(serial_line, timestamp)
-        if terminate.received:
-            break
     ser.close()
     return True
 
