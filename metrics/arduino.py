@@ -138,8 +138,7 @@ def main():
         if not send_logs(msg=log_line, src="serialport", url=LOKI_URL):
             print("Warning: Failed to send serialport logs", file=sys.stderr)
     ser.close()
-    return True
-
+    sys.exit(0)
 
 if __name__ == "__main__":
     main()
