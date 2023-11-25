@@ -101,7 +101,7 @@ def main():
         sys.exit(1)
     while ser.is_open:
         serial_line = message.readline(ser)
-        print(f"{message.sample} {serial_line}")
+        print(f"{message.sample} {serial_line} {message.arduinostamp}")
         metrics = {}
         for m in serial_line.split(","):
             metric = m.split(":")
