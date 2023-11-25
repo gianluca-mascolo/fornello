@@ -29,27 +29,28 @@ class SignalHandler:
 class ArduinoMessage:
     def __init__(self):
         self.ready = False
-        self.sample = 0
+        self.sample = -1
         self.basestamp = time.time_ns()
         self.arduinostamp = 0
-    def line(self, ser: Serial):
+    def readline(self, ser: Serial):
         try:
             read_bytes = ser.read_until()
             decoded_line = read_bytes.decode("ascii").rstrip()
         except:
             return ''
-        if self.ready and self.sample == 0:
+        if self.ready and self.sample < 0:
             for m in decoded_line.split(','):
                 metric = m.split(":")
                 if len(metric) == 2 and metric[0] == 'time':
                     self.arduinostamp = int(metric[1])
-        self.sample += 1
+        if self.ready:
+            self.sample += 1
         return decoded_line
     def setup(self, ser: Serial, retry: int):
         msg = ''
         while retry > 0 and msg != 'READY':
             print("Waiting READY line")
-            msg = self.line(ser)
+            msg = self.readline(ser)
             retry -= 1
         if msg == 'READY':
             print("Arduino is READY")
@@ -58,6 +59,8 @@ class ArduinoMessage:
             return True
         else:
             return False
+    def time_ns(self):
+        return True
 
 
 def sendlog(msg: str, timestamp: int):
@@ -94,9 +97,11 @@ def main():
             sys.exit(1)
 
     message = ArduinoMessage()
-    message.setup(ser=ser,retry=10)
+    if not message.setup(ser=ser,retry=10):
+        print("Error: Arduino setup failed")
+        sys.exit(1)
     while ser.is_open:
-        serial_line = message.line(ser)
+        serial_line = message.readline(ser)
         print(f"{message.sample} {serial_line}")
         metrics = {}
         for m in serial_line.split(","):
