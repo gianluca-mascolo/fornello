@@ -117,6 +117,7 @@ def main():
     message = ArduinoLogger('arduino.fornello')
     if not message.setup(ser=ser,retry=30):
         print("Error: Arduino setup failed")
+        ser.close()
         sys.exit(1)
     while ser.is_open and not terminate.received:
         serial_line = message.readline(ser)
