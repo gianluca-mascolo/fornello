@@ -26,7 +26,7 @@ class SignalHandler:
         self.received = True
         return True
 
-class ArduinoMessage:
+class ArduinoLogger:
     def __init__(self):
         self.ready = False
         self.sample = -1
@@ -38,11 +38,6 @@ class ArduinoMessage:
             decoded_line = read_bytes.decode("ascii").rstrip()
         except:
             return ''
-        if self.ready and self.sample < 0:
-            for m in decoded_line.split(','):
-                metric = m.split(":")
-                if len(metric) == 2 and metric[0] == 'time':
-                    self.arduinostamp = int(metric[1])
         if self.ready:
             self.sample += 1
         return decoded_line
@@ -54,9 +49,13 @@ class ArduinoMessage:
             retry -= 1
         if msg == 'READY':
             print("Arduino is READY")
-            self.ready = True
-            self.basestamp = time.time_ns()
-            return True
+            for m in self.readline(ser).split(','):
+                metric = m.split(":")
+                if len(metric) == 2 and metric[0] == 'time':
+                    self.arduinostamp = int(metric[1])
+                    self.ready = True
+                    self.basestamp = time.time_ns()
+            return self.ready
         else:
             return False
     def time_ns(self):
@@ -96,7 +95,7 @@ def main():
         if terminate.received:
             sys.exit(1)
 
-    message = ArduinoMessage()
+    message = ArduinoLogger()
     if not message.setup(ser=ser,retry=10):
         print("Error: Arduino setup failed")
         sys.exit(1)
