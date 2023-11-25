@@ -103,6 +103,20 @@ def sendlog(msg: str, timestamp: int):
         return False
 
 
+def send_metrics(metrics: list, server: str, port: int):
+    payload = pickle.dumps(metrics, protocol=2)
+    header = struct.pack("!L", len(payload))
+    message = header + payload
+    try:
+        sock = socket.socket()
+        sock.connect((server, port))
+        sock.sendall(message)
+        sock.close()
+    except Exception:
+        return False
+    return True
+
+
 def main():
     terminate = SignalHandler()
     terminate.setup()
@@ -129,24 +143,13 @@ def main():
     while ser.is_open and not terminate.received:
         serial_line = message.readline(ser)
         print(f"{message.sample} {serial_line} {message.arduinostamp}")
-        print(message.metrics)
         metrics = {}
         for m in serial_line.split(","):
             metric = m.split(":")
             if len(metric) == 2:
                 metrics = metrics | {metric[0]: metric[1]}
         timestamp = message.basestamp + (int(metrics["time"]) - message.arduinostamp) * 1000000
-        listOfMetricTuples = [(f"arduino.fornello.{k}", (int(timestamp / 1000000000), float(v))) for k, v in metrics.items() if k != "time"]
-        payload = pickle.dumps(listOfMetricTuples, protocol=2)
-        header = struct.pack("!L", len(payload))
-        message1 = header + payload
-        try:
-            sock = socket.socket()
-            sock.connect((CARBON_SERVER, CARBON_PORT))
-            sock.sendall(message1)
-            sock.close()
-        except Exception:
-            pass
+        send_metrics(message.metrics, CARBON_SERVER, CARBON_PORT)
         sendlog(serial_line, timestamp)
     ser.close()
     return True
