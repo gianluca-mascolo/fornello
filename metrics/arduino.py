@@ -113,14 +113,14 @@ def main():
     try:
         ser = Serial(**SERIAL_SETTINGS)
     except SerialException as e:
-        print(f"Serial Error: {e}")
+        print(f"Serial Error: {e}", file=sys.stderr)
         sys.exit(1)
     except ValueError as ve:
-        print(f"Error: {ve}")
+        print(f"Error: {ve}", file=sys.stderr)
         sys.exit(1)
 
     while not ser.is_open:
-        print("Waiting for serial port to be open")
+        print("Waiting for serial port to be open", file=sys.stderr)
         if terminate.received:
             sys.exit(1)
         time.sleep(1)
