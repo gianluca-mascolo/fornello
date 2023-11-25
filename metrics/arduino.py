@@ -10,10 +10,9 @@ import time
 import requests
 from serial import Serial, SerialException
 
-loki_url = "http://localhost:3100/loki/api/v1/push"
+LOKI_URL = "http://localhost:3100/loki/api/v1/push"
 CARBON_SERVER = "localhost"
 CARBON_PORT = 2004
-
 SERIAL_SETTINGS = {"baudrate": 9600, "port": "/dev/ttyACM0", "timeout": 5}
 
 
@@ -53,25 +52,19 @@ class ArduinoLogger:
     def setup(self, ser: Serial, retry: int):
         msg = ""
         while retry > 0 and msg != "READY":
-            print("Waiting READY line")
+            print("Logging is not ready", file=sys.stderr)
             msg = self.readline(ser)
             retry -= 1
         if msg == "READY":
-            print("Got READY line")
             for m in self.readline(ser).split(","):
                 metric = m.split(":")
                 if len(metric) == 2 and metric[0] == "time":
                     self.arduinostamp = int(metric[1])
                     self.ready = True
                     self.basestamp = time.time_ns()
-                    print("Arduino is READY")
             return self.ready
         else:
             return False
-
-    def time_ns(self):
-        # message.basestamp + (int(metrics["time"]) - message.arduinostamp) * 1000000
-        return True
 
     def __time(self, millis) -> int:
         return int((self.basestamp + (int(millis) - self.arduinostamp) * 1000000) / 1000000000)
@@ -88,13 +81,11 @@ class ArduinoLogger:
             return []
 
 
-def sendlog(msg: str, timestamp: int):
+def send_logs(msg: str, src: str, url: str):
     headers = {"Content-type": "application/json"}
-
-    # labels = {"source": "serialport", "job": "serialcollector", "host": "arduino"}
-    payload = {"streams": [{"stream": {"source": "serialport"}, "values": [[str(timestamp), msg]]}]}
+    payload = {"streams": [{"stream": {"source": src}, "values": [[str(time.time_ns()), msg]]}]}
     try:
-        r = requests.post(loki_url, data=json.dumps(payload), headers=headers)
+        r = requests.post(url, data=json.dumps(payload), headers=headers)
     except Exception:
         return False
     if r.status_code >= 200 or r.status_code <= 299:
@@ -131,26 +122,22 @@ def main():
 
     while not ser.is_open:
         print("Waiting for serial port to be open")
-        time.sleep(1)
         if terminate.received:
             sys.exit(1)
+        time.sleep(1)
 
-    message = ArduinoLogger("arduino.fornello")
-    if not message.setup(ser=ser, retry=30):
-        print("Error: Arduino setup failed")
+    log = ArduinoLogger("arduino.fornello")
+    if not log.setup(ser=ser, retry=30):
+        print("Error: Arduino setup failed", file=sys.stderr)
         ser.close()
         sys.exit(1)
     while ser.is_open and not terminate.received:
-        serial_line = message.readline(ser)
-        print(f"{message.sample} {serial_line} {message.arduinostamp}")
-        metrics = {}
-        for m in serial_line.split(","):
-            metric = m.split(":")
-            if len(metric) == 2:
-                metrics = metrics | {metric[0]: metric[1]}
-        timestamp = message.basestamp + (int(metrics["time"]) - message.arduinostamp) * 1000000
-        send_metrics(message.metrics, CARBON_SERVER, CARBON_PORT)
-        sendlog(serial_line, timestamp)
+        log_line = log.readline(ser)
+        print(f"{log.sample} {log_line}")
+        if not send_metrics(log.metrics, CARBON_SERVER, CARBON_PORT):
+            print("Warning: Failed to send metrics", file=sys.stderr)
+        if not send_logs(msg=log_line, src="serialport", url=LOKI_URL):
+            print("Warning: Failed to send serialport logs", file=sys.stderr)
     ser.close()
     return True
 
