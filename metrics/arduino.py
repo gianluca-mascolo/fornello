@@ -26,7 +26,6 @@ class SignalHandler:
 
     def catch(self, signum, frame):
         self.received = True
-        return True
 
 
 class ArduinoLogger:
@@ -38,7 +37,7 @@ class ArduinoLogger:
         self.metrics = []
         self.metric_path = metric_path
 
-    def readline(self, ser: Serial):
+    def readline(self, ser: Serial) -> str:
         try:
             read_bytes = ser.read_until()
             decoded_line = read_bytes.decode("ascii").rstrip()
@@ -49,7 +48,7 @@ class ArduinoLogger:
             self.sample += 1
         return decoded_line
 
-    def setup(self, ser: Serial, retry: int):
+    def setup(self, ser: Serial, retry: int) -> bool:
         msg = ""
         while retry > 0 and msg != "READY":
             print("Logging is not ready", file=sys.stderr)
@@ -69,7 +68,7 @@ class ArduinoLogger:
     def __time(self, millis) -> int:
         return int((self.basestamp + (int(millis) - self.arduinostamp) * 1000000) / 1000000000)
 
-    def __metrics(self, msg: str):
+    def __metrics(self, msg: str) -> list:
         mdict = {}
         for m in msg.split(","):
             metric = m.split(":")
@@ -81,7 +80,7 @@ class ArduinoLogger:
             return []
 
 
-def send_logs(msg: str, src: str, url: str):
+def send_logs(msg: str, src: str, url: str) -> bool:
     headers = {"Content-type": "application/json"}
     payload = {"streams": [{"stream": {"source": src}, "values": [[str(time.time_ns()), msg]]}]}
     try:
@@ -94,7 +93,7 @@ def send_logs(msg: str, src: str, url: str):
         return False
 
 
-def send_metrics(metrics: list, server: str, port: int):
+def send_metrics(metrics: list, server: str, port: int) -> bool:
     payload = pickle.dumps(metrics, protocol=2)
     header = struct.pack("!L", len(payload))
     message = header + payload
