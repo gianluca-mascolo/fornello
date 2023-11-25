@@ -27,15 +27,18 @@ class SignalHandler:
         return True
 
 class ArduinoLogger:
-    def __init__(self):
+    def __init__(self,metric_path: str):
         self.ready = False
         self.sample = -1
         self.basestamp = time.time_ns()
         self.arduinostamp = 0
+        self.metrics = []
+        self.metric_path = metric_path
     def readline(self, ser: Serial):
         try:
             read_bytes = ser.read_until()
             decoded_line = read_bytes.decode("ascii").rstrip()
+            self.metrics = self.__metrics(decoded_line)
         except:
             return ''
         if self.ready:
@@ -48,18 +51,34 @@ class ArduinoLogger:
             msg = self.readline(ser)
             retry -= 1
         if msg == 'READY':
-            print("Arduino is READY")
+            print("Got READY line")
             for m in self.readline(ser).split(','):
                 metric = m.split(":")
                 if len(metric) == 2 and metric[0] == 'time':
                     self.arduinostamp = int(metric[1])
                     self.ready = True
                     self.basestamp = time.time_ns()
+                    print("Arduino is READY")
             return self.ready
         else:
             return False
     def time_ns(self):
+        #message.basestamp + (int(metrics["time"]) - message.arduinostamp) * 1000000
         return True
+
+    def __time(self, millis) -> int:
+        return int((self.basestamp + (int(millis) - self.arduinostamp) * 1000000) / 1000000000)
+
+    def __metrics(self, msg: str):
+        mdict = {}
+        for m in msg.split(","):
+            metric = m.split(":")
+            if len(metric) == 2:
+                mdict = mdict | {metric[0]: metric[1]}
+        if 'time' in mdict:
+            return [(f"{self.metric_path}.{k}", (self.__time(mdict['time']), float(v))) for k, v in mdict.items() if k != "time"]
+        else:
+            return []
 
 
 def sendlog(msg: str, timestamp: int):
@@ -95,13 +114,14 @@ def main():
         if terminate.received:
             sys.exit(1)
 
-    message = ArduinoLogger()
-    if not message.setup(ser=ser,retry=10):
+    message = ArduinoLogger('arduino.fornello')
+    if not message.setup(ser=ser,retry=30):
         print("Error: Arduino setup failed")
         sys.exit(1)
     while ser.is_open and not terminate.received:
         serial_line = message.readline(ser)
         print(f"{message.sample} {serial_line} {message.arduinostamp}")
+        print(message.metrics)
         metrics = {}
         for m in serial_line.split(","):
             metric = m.split(":")
